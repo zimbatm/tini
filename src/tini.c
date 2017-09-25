@@ -53,6 +53,7 @@ static unsigned int verbosity = DEFAULT_VERBOSITY;
 #endif
 
 #define VERBOSITY_ENV_VAR "TINI_VERBOSITY"
+#define KILL_PROCESS_GROUP_GROUP_ENV_VAR "TINI_KILL_PROCESS_GROUP"
 
 #define TINI_VERSION_STRING "tini version " TINI_VERSION TINI_GIT
 
@@ -203,9 +204,10 @@ void print_usage(char* const name, FILE* const file) {
 
 	fprintf(file, "Environment variables:\n\n");
 #if HAS_SUBREAPER
-	fprintf(file, "  %s: Register as a process subreaper (requires Linux >= 3.4)\n", SUBREAPER_ENV_VAR);
+	fprintf(file, "  %s: Register as a process subreaper (requires Linux >= 3.4).\n", SUBREAPER_ENV_VAR);
 #endif
-	fprintf(file, "  %s: Set the verbosity level (default: %d)\n", VERBOSITY_ENV_VAR, DEFAULT_VERBOSITY);
+	fprintf(file, "  %s: Set the verbosity level (default: %d).\n", VERBOSITY_ENV_VAR, DEFAULT_VERBOSITY);
+	fprintf(file, "  %s: Send signals to the child's process group.\n", KILL_PROCESS_GROUP_GROUP_ENV_VAR);
 
 	fprintf(file, "\n");
 }
@@ -293,6 +295,10 @@ int parse_env() {
 		subreaper++;
 	}
 #endif
+
+	if (getenv(KILL_PROCESS_GROUP_GROUP_ENV_VAR) != NULL) {
+		kill_process_group++;
+	}
 
 	char* env_verbosity = getenv(VERBOSITY_ENV_VAR);
 	if (env_verbosity != NULL) {
