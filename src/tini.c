@@ -45,11 +45,11 @@ static unsigned int verbosity = DEFAULT_VERBOSITY;
 
 #ifdef PR_SET_CHILD_SUBREAPER
 #define HAS_SUBREAPER 1
-#define OPT_STRING "hsvgl"
+#define OPT_STRING "hsvwgl"
 #define SUBREAPER_ENV_VAR "TINI_SUBREAPER"
 #else
 #define HAS_SUBREAPER 0
-#define OPT_STRING "hvgl"
+#define OPT_STRING "hvwgl"
 #endif
 
 #define VERBOSITY_ENV_VAR "TINI_VERBOSITY"
@@ -61,6 +61,8 @@ static unsigned int verbosity = DEFAULT_VERBOSITY;
 static unsigned int subreaper = 0;
 #endif
 static unsigned int kill_process_group = 0;
+
+static unsigned int warn_on_reap = 0;
 
 static struct timespec ts = { .tv_sec = 1, .tv_nsec = 0 };
 
@@ -195,6 +197,7 @@ void print_usage(char* const name, FILE* const file) {
 	fprintf(file, "  -s: Register as a process subreaper (requires Linux >= 3.4).\n");
 #endif
 	fprintf(file, "  -v: Generate more verbose output. Repeat up to 3 times.\n");
+	fprintf(file, "  -w: Print a warning when processes are getting reaped.\n");
 	fprintf(file, "  -g: Send signals to the child's process group.\n");
 	fprintf(file, "  -l: Show license and exit.\n");
 #endif
@@ -245,6 +248,10 @@ int parse_args(const int argc, char* const argv[], char* (**child_args_ptr_ptr)[
 #endif
 			case 'v':
 				verbosity++;
+				break;
+
+			case 'w':
+				warn_on_reap++;
 				break;
 
 			case 'g':
@@ -454,7 +461,6 @@ int reap_zombies(const pid_t child_pid, int* const child_exitcode_ptr) {
 				/* A child was reaped. Check whether it's the main one. If it is, then
 				 * set the exit_code, which will cause us to exit once we've reaped everyone else.
 				 */
-				PRINT_DEBUG("Reaped child with pid: '%i'", current_pid);
 				if (current_pid == child_pid) {
 					if (WIFEXITED(current_status)) {
 						/* Our process exited normally. */
@@ -469,6 +475,12 @@ int reap_zombies(const pid_t child_pid, int* const child_exitcode_ptr) {
 					} else {
 						PRINT_FATAL("Main child exited for unknown reason");
 						return 1;
+					}
+				} else {
+					if (warn_on_reap > 0) {
+						PRINT_WARNING("Reaped child with pid: '%i'", current_pid);
+					} else {
+						PRINT_DEBUG("Reaped child with pid: '%i'", current_pid);
 					}
 				}
 
